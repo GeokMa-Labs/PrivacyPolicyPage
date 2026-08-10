@@ -1,0 +1,44 @@
+# GitHub Pages 배포.
+#
+# 이 저장소의 Pages는 `build_type: workflow`라 워크플로가 산출물을 올려야 게시된다.
+# 기존 `jekyll-docker.yml`은 빌드만 하고 배포하지 않아, 2023년 이후 푸시가 반영되지
+# 않고 있었다. 이 워크플로가 실제 배포를 담당한다.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포는 순서대로 하나씩. 진행 중인 배포를 취소하지 않는다.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      # Jekyll이 _site로 내보내면 .git과 dotfile이 산출물에서 빠진다.
+      # 저장소 루트를 그대로 올리면 저장소 이력까지 정적 파일로 서비스될 수 있다.
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+
+      - uses: actions/upload-pages-artifact@v3
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
